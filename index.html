@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>היסטוגרמת קורסים לפי סמסטר</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --danger:         #d03b3b;
+    --danger-bg:      #fbeceb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --danger:         #e66767;
+      --danger-bg:      #3a2323;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+  }
+
+  .app {
+    display: flex;
+    min-height: 100vh;
+    align-items: stretch;
+  }
+
+  .side-panel {
+    flex: 0 0 300px;
+    max-width: 300px;
+    background: var(--surface-1);
+    border-inline-start: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .main-area {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  h1 {
+    font-size: 18px;
+    margin: 0 0 4px 0;
+  }
+
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+    text-transform: none;
+  }
+
+  section.panel-block {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .file-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--page-plane);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  button:hover {
+    filter: brightness(0.97);
+  }
+  @media (prefers-color-scheme: dark) {
+    button:hover { filter: brightness(1.2); }
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 40vh;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px;
+  }
+
+  .file-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .file-row:hover {
+    background: var(--page-plane);
+  }
+  .file-row input[type="checkbox"] {
+    flex: 0 0 auto;
+  }
+  .file-row span {
+    word-break: break-word;
+  }
+
+  .file-list-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 6px;
+  }
+
+  .semester-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .semester-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .semester-option:hover {
+    background: var(--page-plane);
+  }
+
+  .chart-container {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    max-height: 75vh;
+    min-height: 200px;
+    flex: 1 1 auto;
+  }
+
+  .empty-state, .error-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 180px;
+    color: var(--text-muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
+  }
+  .error-state {
+    color: var(--danger);
+  }
+
+  svg text {
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+  }
+
+  .errors-panel {
+    display: none;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    position: relative;
+  }
+  .errors-panel.visible {
+    display: block;
+  }
+  .errors-panel h3 {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    color: var(--danger);
+  }
+  .errors-panel ul {
+    margin: 0;
+    padding-inline-start: 18px;
+  }
+  .errors-panel li {
+    margin-bottom: 2px;
+  }
+  .errors-dismiss {
+    position: absolute;
+    top: 6px;
+    inset-inline-end: 8px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 2px 6px;
+  }
+  .errors-dismiss:hover {
+    color: var(--danger);
+  }
+
+  @media (max-width: 700px) {
+    .app { flex-direction: column; }
+    .side-panel {
+      flex: 0 0 auto;
+      max-width: none;
+      border-inline-start: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .file-list { max-height: 30vh; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side-panel">
+      <div>
+        <h1>היסטוגרמת קורסים</h1>
+      </div>
+
+      <section class="panel-block">
+        <h2>סמסטר</h2>
+        <div class="semester-picker" id="semesterPicker"></div>
+      </section>
+
+      <section class="panel-block" style="flex: 1 1 auto; min-height: 0;">
+        <h2>קבצים</h2>
+        <div class="file-buttons">
+          <button type="button" id="selectAllBtn">בחר הכל</button>
+          <button type="button" id="clearAllBtn">נקה הכל</button>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </section>
+    </aside>
+
+    <main class="main-area">
+      <div class="chart-container" id="chartArea">
+        <div class="empty-state">טוען...</div>
+      </div>
+      <div class="errors-panel" id="errorsPanel">
+        <button type="button" class="errors-dismiss" id="errorsDismissBtn" aria-label="סגור">✕</button>
+        <h3>שגיאות בקריאת קבצים</h3>
+        <ul id="errorsList"></ul>
+      </div>
+    </main>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var VALID_SEMESTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו'];
+  var SEMESTER_LABELS = {
+    'א': "סמסטר א'",
+    'ב': "סמסטר ב'",
+    'ג': "סמסטר ג'",
+    'ד': "סמסטר ד'",
+    'ה': "סמסטר ה'",
+    'ו': "סמסטר ו'"
+  };
+
+  var fileListEl = document.getElementById('fileList');
+  var chartAreaEl = document.getElementById('chartArea');
+  var errorsPanelEl = document.getElementById('errorsPanel');
+  var errorsListEl = document.getElementById('errorsList');
+  var semesterPickerEl = document.getElementById('semesterPicker');
+  var selectAllBtn = document.getElementById('selectAllBtn');
+  var clearAllBtn = document.getElementById('clearAllBtn');
+  var errorsDismissBtn = document.getElementById('errorsDismissBtn');
+
+  // filename -> { row: HTMLElement, checkbox: HTMLInputElement }
+  var fileRows = new Map();
+
+  var savedSemester = null;
+  try {
+    savedSemester = window.localStorage.getItem('selectedSemester');
+  } catch (e) {
+    savedSemester = null;
+  }
+  var currentSemester = (VALID_SEMESTERS.indexOf(savedSemester) !== -1) ? savedSemester : 'א';
+
+  var savedSelectedFiles = new Set();
+  try {
+    var savedFilesRaw = window.localStorage.getItem('selectedFiles');
+    if (savedFilesRaw) {
+      var savedFilesParsed = JSON.parse(savedFilesRaw);
+      if (Array.isArray(savedFilesParsed)) {
+        savedFilesParsed.forEach(function (n) {
+          if (typeof n === 'string') { savedSelectedFiles.add(n); }
+        });
+      }
+    }
+  } catch (e) {
+    savedSelectedFiles = new Set();
+  }
+
+  var requestSeq = 0;
+
+  // ---------- Semester picker ----------
+
+  function saveSelectedFiles(names) {
+    try {
+      window.localStorage.setItem('selectedFiles', JSON.stringify(names));
+    } catch (e) {
+      // ignore storage failures
+    }
+  }
+
+  function buildSemesterPicker() {
+    VALID_SEMESTERS.forEach(function (value) {
+      var label = document.createElement('label');
+      label.className = 'semester-option';
+
+      var input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'semester';
+      input.value = value;
+      if (value === currentSemester) {
+        input.checked = true;
+      }
+      input.addEventListener('change', function () {
+        if (input.checked) {
+          currentSemester = value;
+          try {
+            window.localStorage.setItem('selectedSemester', value);
+          } catch (e) {
+            // ignore storage failures
+          }
+          refreshHistogramNow();
+        }
+      });
+
+      var span = document.createElement('span');
+      span.textContent = SEMESTER_LABELS[value];
+
+      label.appendChild(input);
+      label.appendChild(span);
+      semesterPickerEl.appendChild(label);
+    });
+  }
+
+  // ---------- File list ----------
+
+  function addFileRow(name, checked) {
+    var row = document.createElement('label');
+    row.className = 'file-row';
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!checked;
+    cb.addEventListener('change', function () {
+      refreshHistogramNow();
+    });
+
+    var span = document.createElement('span');
+    span.textContent = name;
+
+    row.appendChild(cb);
+    row.appendChild(span);
+    fileListEl.appendChild(row);
+
+    fileRows.set(name, { row: row, checkbox: cb });
+  }
+
+  function getCheckedFiles() {
+    var result = [];
+    fileRows.forEach(function (info, name) {
+      if (info.checkbox.checked) {
+        result.push(name);
+      }
+    });
+    return result;
+  }
+
+  function renderEmptyFileListMessage(text) {
+    fileListEl.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'file-list-empty';
+    div.textContent = text;
+    fileListEl.appendChild(div);
+  }
+
+  function loadFilesInitial() {
+    fetch('/api/files')
+      .then(function (resp) {
+        if (!resp.ok) { throw new Error('bad status'); }
+        return resp.json();
+      })
+      .then(function (files) {
+        if (!Array.isArray(files)) { throw new Error('bad payload'); }
+        if (files.length === 0) {
+          renderEmptyFileListMessage('לא נמצאו קבצים בתיקייה');
+          return;
+        }
+        files.forEach(function (name) {
+          addFileRow(name, savedSelectedFiles.has(name));
+        });
+        if (getCheckedFiles().length > 0) {
+          refreshHistogramNow();
+        }
+      })
+      .catch(function () {
+        renderEmptyFileListMessage('שגיאה בטעינת רשימת הקבצים');
+      });
+  }
+
+  function pollFiles() {
+    fetch('/api/files')
+      .then(function (resp) {
+        if (!resp.ok) { throw new Error('bad status'); }
+        return resp.json();
+      })
+      .then(function (files) {
+        if (!Array.isArray(files)) { throw new Error('bad payload'); }
+
+        var currentNames = {};
+        files.forEach(function (name) { currentNames[name] = true; });
+
+        var selectionChanged = false;
+
+        // Removals: files that disappeared from the server
+        Array.from(fileRows.keys()).forEach(function (name) {
+          if (!currentNames[name]) {
+            var info = fileRows.get(name);
+            if (info.checkbox.checked) {
+              selectionChanged = true;
+            }
+            if (info.row.parentNode) {
+              info.row.parentNode.removeChild(info.row);
+            }
+            fileRows.delete(name);
+          }
+        });
+
+        // If the "no files found" placeholder is showing and we now have
+        // real rows to add, clear it first.
+        if (fileRows.size === 0 && files.length > 0) {
+          fileListEl.innerHTML = '';
+        }
+
+        // Additions: new files that appeared on the server
+        files.forEach(function (name) {
+          if (!fileRows.has(name)) {
+            addFileRow(name, savedSelectedFiles.has(name));
+          }
+        });
+
+        if (fileRows.size === 0) {
+          renderEmptyFileListMessage('לא נמצאו קבצים בתיקייה');
+        }
+
+        if (selectionChanged) {
+          refreshHistogramNow();
+        }
+      })
+      .catch(function () {
+        // Server hiccup: skip this tick silently, keep the current list intact.
+      });
+  }
+
+  selectAllBtn.addEventListener('click', function () {
+    fileRows.forEach(function (info) {
+      info.checkbox.checked = true;
+    });
+    refreshHistogramNow();
+  });
+
+  clearAllBtn.addEventListener('click', function () {
+    fileRows.forEach(function (info) {
+      info.checkbox.checked = false;
+    });
+    refreshHistogramNow();
+  });
+
+  // ---------- Errors panel ----------
+
+  function showErrorsPanel(errors) {
+    errorsListEl.innerHTML = '';
+    errors.forEach(function (err) {
+      var li = document.createElement('li');
+      var file = (err && typeof err.file === 'string') ? err.file : '';
+      var message = (err && typeof err.message === 'string') ? err.message : '';
+      li.textContent = 'שגיאה בקריאת הקובץ: ' + file + ' — ' + message;
+      errorsListEl.appendChild(li);
+    });
+    errorsPanelEl.classList.add('visible');
+  }
+
+  function hideErrorsPanel() {
+    errorsPanelEl.classList.remove('visible');
+  }
+
+  errorsDismissBtn.addEventListener('click', function () {
+    hideErrorsPanel();
+  });
+
+  // ---------- Chart states ----------
+
+  function showEmptyState(text) {
+    chartAreaEl.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'empty-state';
+    div.textContent = text;
+    chartAreaEl.appendChild(div);
+  }
+
+  function showErrorState(text) {
+    chartAreaEl.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'error-state';
+    div.textContent = text;
+    chartAreaEl.appendChild(div);
+  }
+
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function renderChart(results) {
+    chartAreaEl.innerHTML = '';
+
+    var containerWidth = Math.max(chartAreaEl.clientWidth - 8, 320);
+    var rowHeight = 32;
+    var barThickness = 22;
+    var rows = results.length;
+    var svgHeight = rows * rowHeight;
+
+    var rightPadding = 10;
+    var labelWidth = Math.min(260, Math.round(containerWidth * 0.38));
+    var gapAfterLabel = 8;
+    var leftPadding = 46;
+
+    var baselineX = containerWidth - rightPadding - labelWidth - gapAfterLabel;
+    var maxBarWidth = Math.max(baselineX - leftPadding, 20);
+
+    var maxCount = results[0].count > 0 ? results[0].count : 1;
+
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('width', String(containerWidth));
+    svg.setAttribute('height', String(svgHeight));
+    svg.setAttribute('viewBox', '0 0 ' + containerWidth + ' ' + svgHeight);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'היסטוגרמת קורסים');
+    // The page is RTL (html dir="rtl"); CSS `direction` inherits into SVG
+    // text and makes text-anchor start/end direction-relative, flipping
+    // which physical side "end" anchors to and clipping labels past the
+    // SVG's own default overflow:hidden edge. Force ltr here so
+    // text-anchor keeps its literal left/right meaning; this does not
+    // affect how the Hebrew glyphs themselves render (that's governed by
+    // the Unicode Bidi Algorithm on the character data, not by direction).
+    svg.setAttribute('direction', 'ltr');
+    svg.style.direction = 'ltr';
+
+    results.forEach(function (item, index) {
+      var rowTop = index * rowHeight;
+      var rowMidY = rowTop + rowHeight / 2;
+      var barTop = rowTop + (rowHeight - barThickness) / 2;
+
+      var count = typeof item.count === 'number' ? item.count : 0;
+      var barLength = Math.max((count / maxCount) * maxBarWidth, count > 0 ? 3 : 0);
+      var barX = baselineX - barLength;
+
+      var rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', String(barX));
+      rect.setAttribute('y', String(barTop));
+      rect.setAttribute('width', String(barLength));
+      rect.setAttribute('height', String(barThickness));
+      rect.setAttribute('rx', '3');
+      rect.setAttribute('fill', 'var(--series-1)');
+
+      var titleEl = document.createElementNS(SVG_NS, 'title');
+      titleEl.textContent = item.name + ' (' + item.code + ') — ' + count;
+      rect.appendChild(titleEl);
+
+      svg.appendChild(rect);
+
+      var nameText = document.createElementNS(SVG_NS, 'text');
+      nameText.setAttribute('x', String(containerWidth - rightPadding));
+      nameText.setAttribute('y', String(rowMidY));
+      nameText.setAttribute('text-anchor', 'end');
+      nameText.setAttribute('dominant-baseline', 'central');
+      nameText.setAttribute('font-size', '12');
+      nameText.setAttribute('fill', 'var(--text-primary)');
+      nameText.textContent = item.name;
+      var nameTitle = document.createElementNS(SVG_NS, 'title');
+      nameTitle.textContent = item.name + ' (' + item.code + ') — ' + count;
+      nameText.appendChild(nameTitle);
+      svg.appendChild(nameText);
+
+      var countText = document.createElementNS(SVG_NS, 'text');
+      countText.setAttribute('x', String(Math.max(barX - 6, 2)));
+      countText.setAttribute('y', String(rowMidY));
+      countText.setAttribute('text-anchor', 'end');
+      countText.setAttribute('dominant-baseline', 'central');
+      countText.setAttribute('font-size', '12');
+      countText.setAttribute('fill', 'var(--text-secondary)');
+      countText.textContent = String(count);
+      svg.appendChild(countText);
+    });
+
+    chartAreaEl.appendChild(svg);
+  }
+
+  // ---------- Histogram refresh ----------
+
+  function refreshHistogramNow() {
+    var mySeq = ++requestSeq;
+    var checked = getCheckedFiles();
+    saveSelectedFiles(checked);
+
+    if (checked.length === 0) {
+      showEmptyState('בחר/י לפחות קובץ אחד');
+      hideErrorsPanel();
+      return;
+    }
+
+    var params = new URLSearchParams();
+    params.set('semester', currentSemester);
+    checked.forEach(function (name) {
+      params.append('files', name);
+    });
+
+    fetch('/api/histogram?' + params.toString())
+      .then(function (resp) {
+        if (mySeq !== requestSeq) { return null; }
+        if (!resp.ok) {
+          showErrorState('אירעה שגיאה בטעינת הנתונים מהשרת.');
+          hideErrorsPanel();
+          return null;
+        }
+        return resp.json();
+      })
+      .then(function (data) {
+        if (data === null || mySeq !== requestSeq) { return; }
+        if (!data || !Array.isArray(data.results)) {
+          showErrorState('תגובת שרת לא תקינה.');
+          hideErrorsPanel();
+          return;
+        }
+
+        if (data.results.length === 0) {
+          showEmptyState('לא נמצאו קורסים לסמסטר זה בקבצים שנבחרו');
+        } else {
+          renderChart(data.results);
+        }
+
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          showErrorsPanel(data.errors);
+        } else {
+          hideErrorsPanel();
+        }
+      })
+      .catch(function () {
+        if (mySeq !== requestSeq) { return; }
+        showErrorState('אירעה שגיאה בטעינת הנתונים מהשרת.');
+        hideErrorsPanel();
+      });
+  }
+
+  // ---------- Init ----------
+
+  buildSemesterPicker();
+  showEmptyState('בחר/י לפחות קובץ אחד');
+  loadFilesInitial();
+  setInterval(pollFiles, 3000);
+})();
+</script>
+</body>
+</html>
